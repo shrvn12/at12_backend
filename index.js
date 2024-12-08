@@ -89,6 +89,8 @@ app.get('/video', async (req, res) => {
        return await ytdl.getInfo(`${url}`).then((info) => {
             // info = info.formats.filter((el) => el.hasAudio);
             return res.json({videoDetails: info?.videoDetails, formats: info?.formats.filter((el) => el.hasAudio).sort((a,b) => a.bitrate > b.bitrate)});
+        }).catch(err => {
+            console.log(err);
         })
 })
 
