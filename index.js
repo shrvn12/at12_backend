@@ -8,6 +8,10 @@ const ytmusic = new YTMusic()
 const app = express();
 app.use(cors());
 
+app.get('/', (req, res) => {
+    res.send("AT12 Backend...");
+})
+
 app.get('/audio', async(req, res) => {
     const url = req.query.url;
     const search = req.query.search;
