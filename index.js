@@ -85,8 +85,19 @@ app.get('/video', async (req, res) => {
     if (!query) {
         return res.send('query missing!')
     }
+    const options = {
+        requestOptions: {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+            'Connection': 'keep-alive',
+            'Referer': 'https://www.youtube.com'
+          }
+        }
+      };
     const url = `https://music.youtube.com/watch?v=${query}`;
-       return await ytdl.getInfo(`${url}`).then((info) => {
+       return await ytdl.getInfo(`${url}`, options).then((info) => {
             // info = info.formats.filter((el) => el.hasAudio);
             return res.json({videoDetails: info?.videoDetails, formats: info?.formats.filter((el) => el.hasAudio).sort((a,b) => a.bitrate > b.bitrate)});
         }).catch(err => {
