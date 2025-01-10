@@ -117,6 +117,7 @@ router.get('/getQueue', async (req, res) => {
 
 router.get('/getInfo', async (req, res) => {
   const { id: videoId } = req.query;
+  await ytmusic.initialize();
 
   // Validate the video ID parameter
   if (!videoId) {
@@ -154,13 +155,31 @@ router.get('/getInfo', async (req, res) => {
 
     // Update videoInfo with fetched details
     videoInfo.artist = songDetails.artist || videoInfo.artist;
-    videoInfo.lyrics = lyricsDetails || 'Lyrics not found';
+    videoInfo.lyrics = lyricsDetails;
 
     return res.json(videoInfo);
   } catch (err) {
     console.error('Error fetching video info:', err);
     return res.status(500).json({
       error: 'An error occurred while fetching video info.',
+      details: err.message,
+    });
+  }
+});
+
+router.get('/homeSections', async (req, res) => {
+  try {
+    console.log('Initializing ytmusic...');
+    await ytmusic.initialize();
+
+    console.log('Fetching home sections...');
+    const result = await ytmusic.getHomeSections();
+
+    return res.json(result);
+  } catch (err) {
+    console.error('Error fetching home sections:', err);
+    return res.status(500).json({
+      error: 'Failed to fetch home sections.',
       details: err.message,
     });
   }
