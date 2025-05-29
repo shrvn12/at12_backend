@@ -228,6 +228,7 @@ router.get('/getInfo', async (req, res) => {
       if (withSynced || withPlain) {
         videoInfo.lyrics = withSynced?.syncedLyrics || withPlain?.plainLyrics;
       }
+      videoInfo.synced = !!withSynced;
     } else {
       console.warn('Lrclib fetch failed with status', lyricsRes.status);
     }
