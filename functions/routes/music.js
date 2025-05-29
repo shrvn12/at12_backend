@@ -5,7 +5,7 @@ var router = express.Router();
 const YTMusic = require('ytmusic-api');
 
 const ytmusic = new YTMusic()
-/* GET users listing. */
+
 router.get('/', function(req, res, next) {
   res.render('index', { title: 'AT12' });
 });
@@ -143,19 +143,11 @@ router.get('/getInfo', async (req, res) => {
       title: videoDetails.snippet?.title,
       stats: videoDetails.statistics,
       artist: videoDetails.snippet?.channelTitle, // Placeholder for artist details
-      lyrics: null, // Placeholder for lyrics
+      thumbnails: videoDetails.snippet?.thumbnails,
+      channelId: videoDetails.snippet?.channelId,
+      descrption: videoDetails.snippet?.description,
+      publishedAt: videoDetails.snippet?.publishedAt,
     };
-
-    console.log('Fetching additional details for artist and lyrics...');
-    // Fetch artist and lyrics details asynchronously
-    const [songDetails, lyricsDetails] = await Promise.all([
-      ytmusic.getSong(videoId),
-      ytmusic.getLyrics(videoId),
-    ]);
-
-    // Update videoInfo with fetched details
-    videoInfo.artist = songDetails.artist || videoInfo.artist;
-    videoInfo.lyrics = lyricsDetails;
 
     return res.json(videoInfo);
   } catch (err) {
@@ -169,19 +161,54 @@ router.get('/getInfo', async (req, res) => {
 
 router.get('/homeSections', async (req, res) => {
   try {
-    console.log('Initializing ytmusic...');
-    await ytmusic.initialize();
+    console.log('Initializing ytmusic for India...');
+    // Initialize with India region (GL) and English language (HL)
+    await ytmusic.initialize({ GL: 'IN', HL: 'en' })
 
-    console.log('Fetching home sections...');
-    const result = await ytmusic.getHomeSections();
+    console.log('Fetching India-specific home sections...');
+    const result = await ytmusic.getHomeSections()
 
-    return res.json(result);
+    return res.json(result)
   } catch (err) {
-    console.error('Error fetching home sections:', err);
+    console.error('Error fetching home sections:', err)
     return res.status(500).json({
-      error: 'Failed to fetch home sections.',
+      error: 'Failed to fetch India-specific home sections.',
       details: err.message,
+    })
+  }
+})
+
+router.get('/lyrics', async (req, res) => {
+  const query = req.query.q || "";
+  const duration = parseInt(req.query.duration);
+
+  if (!query.length) {
+    return res.status(400).send('Query is missing');
+  }
+
+  if (isNaN(duration)) {
+    return res.status(400).send('Duration (in seconds) is required and must be a number');
+  }
+
+  try {
+    const response = await fetch(`https://lrclib.net/api/search?q=${encodeURIComponent(query)}`);
+    if (!response.ok) {
+      return res.status(response.status).send('Failed to fetch lyrics');
+    }
+
+    const data = await response.json();
+    const durationFiltered = data.filter(song => {
+      const songDuration = Math.round(song.duration); // in seconds
+      return Math.abs(songDuration - duration) <= 3;
     });
+
+    const synced = durationFiltered.find(song => song.syncedLyrics);
+    const plain = durationFiltered.find(song => song.plainLyrics);
+    return res.json(synced || plain || { message: 'No lyrics found matching criteria' });
+
+  } catch (err) {
+    console.error(err);
+    return res.status(500).send('Internal server error');
   }
 });
 
