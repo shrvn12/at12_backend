@@ -192,10 +192,7 @@ router.get('/getInfo', async (req, res) => {
     const rawTitle = videoDetails.snippet?.title || '';
     const cleanedTitle = rawTitle
       .split('|')[0]
-      .split('-')
-      .slice(0, 2)
-      .map(s => s.trim())
-      .join(' ')
+      .split('-')[0]
       .trim(); // Clean title: take first two elements after cleanup
     const durationISO = videoDetails.contentDetails?.duration;
     const duration = parseYouTubeDuration(durationISO);
