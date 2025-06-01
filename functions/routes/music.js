@@ -170,6 +170,29 @@ router.get('/getQueue', async (req, res) => {
 //   }
 // });
 
+
+function cleanTitle(rawTitle) {
+  // Step 1: Remove unwanted keywords
+  const unwantedWords = ["full video", "lyrical", "full audio", "full song", "full album", "full movie", "full", "official video", "official audio", "official song", "official music video", "official full video", "official full song", "official full album", "official full movie", "audio", "song", "album", "movie"];
+  let cleaned = rawTitle;
+
+  unwantedWords.forEach(word => {
+    const regex = new RegExp(`\\b${word}\\b`, 'gi');
+    cleaned = cleaned.replace(regex, '');
+  });
+
+  // Step 2: Remove leading special characters
+  cleaned = cleaned.replace(/^[^a-zA-Z0-9]+/, '');
+
+  // Step 3: Take text before "|" or "-" (whichever comes first)
+  const splitByPipe = cleaned.split('|')[0];
+  const splitByDash = splitByPipe.split('-')[0];
+
+  // Step 4: Final cleanup
+  return splitByDash.trim().replace(/\s{2,}/g, ' ');
+}
+
+
 router.get('/getInfo', async (req, res) => {
   const { id: videoId } = req.query;
   await ytmusic.initialize();
@@ -190,10 +213,8 @@ router.get('/getInfo', async (req, res) => {
 
     const videoDetails = data.items[0];
     const rawTitle = videoDetails.snippet?.title || '';
-    const cleanedTitle = rawTitle
-      .split('|')[0]
-      .split('-')[0]
-      .trim(); // Clean title: take first two elements after cleanup
+    const cleanedTitle = cleanTitle(rawTitle);
+    console.log('Cleaned title:', cleanedTitle);
     const durationISO = videoDetails.contentDetails?.duration;
     const duration = parseYouTubeDuration(durationISO);
 
@@ -206,6 +227,7 @@ router.get('/getInfo', async (req, res) => {
       channelId: videoDetails.snippet?.channelId,
       description: videoDetails.snippet?.description,
       publishedAt: videoDetails.snippet?.publishedAt,
+      categoryId: videoDetails.snippet?.categoryId,
       duration,
       lyrics: null,
     };
@@ -216,7 +238,7 @@ router.get('/getInfo', async (req, res) => {
       const lyricsData = await lyricsRes.json();
 
       const filteredByDuration = lyricsData.filter(song => {
-        return song.duration && Math.abs(Math.round(song.duration) - duration) <= 5;
+        return song.duration && Math.abs(Math.round(song.duration) - duration) <= 2;
       });
 
       const withSynced = filteredByDuration.find(song => song.syncedLyrics);
