@@ -29,6 +29,8 @@
     "jade": "~1.11.0",
     "morgan": "~1.9.1",
     "path": "^0.12.7",
+    "youtube-music-api": "^1.0.6",
+    "ytmusic_api_unofficial": "^2.1.6",
     "ytmusic-api": "^5.2.2"
   },
   "devDependencies": {

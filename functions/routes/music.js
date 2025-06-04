@@ -3,6 +3,7 @@ var express = require('express');
 require('dotenv').config();
 var router = express.Router();
 const YTMusic = require('ytmusic-api');
+const ytm = require('ytmusic_api_unofficial')
 
 const ytmusic = new YTMusic()
 
@@ -47,7 +48,7 @@ router.get('/search', async (req, res) => {
 
 router.get('/searchSong', async (req, res) => {
   try {
-    // Initialize ytmusic library
+    // initialize ytmusic library
     await ytmusic.initialize();
 
     const query = req.query.query;
@@ -173,7 +174,7 @@ router.get('/getQueue', async (req, res) => {
 
 function cleanTitle(rawTitle) {
   // Step 1: Remove unwanted keywords
-  const unwantedWords = ["full video", "lyrical", "full audio", "full song", "full album", "full movie", "full", "official video", "official audio", "official song", "official music video", "official full video", "official full song", "official full album", "official full movie", "audio", "song", "album", "movie"];
+  const unwantedWords = ["full video", "lyrical", "full audio", "full song", "full album", "full movie", "full", "official video", "official audio", "official song", "official music video", "official full video", "official full song", "official full album", "official full movie", "audio", "song", "album", "movie", "music video", "music", "video", "lyrics", "lyric", "official", "full song audio", "full song video", "full song music video", "full song lyrics", "full song lyric", "full album audio", "full album video", "full album music video", "full album lyrics", "full album lyric"];
   let cleaned = rawTitle;
 
   unwantedWords.forEach(word => {
@@ -192,6 +193,39 @@ function cleanTitle(rawTitle) {
   return splitByDash.trim().replace(/\s{2,}/g, ' ');
 }
 
+function parseLyrics(lyricsText) {
+  const result = [];
+  if (!lyricsText || typeof lyricsText !== 'string') {
+    return null;
+  }
+  const lines = lyricsText.split(/\r?\n/); // Support \n and \r\n
+
+  for (const line of lines) {
+    // Try correct format first: [mm:ss.ms] or [mm:ss.mss]
+    let match = line.match(/^\[(\d{2}):(\d{2})\.(\d{2,3})\](.*)$/);
+    if (match) {
+      const [, min, sec, ms, text] = match;
+      const time = parseInt(min) * 60 + parseInt(sec) + parseInt(ms) / 1000;
+      result.push({ time, text: text.trim() });
+      continue;
+    }
+
+    // Fallback for malformed timestamps like [00:1555]
+    match = line.match(/^\[(\d{2}):(\d{3,5})\](.*)$/);
+    if (match) {
+      const [, min, combined, text] = match;
+      // Assume last 2–3 digits are milliseconds, rest are seconds
+      const msLength = combined.length > 4 ? 3 : 2;
+      const ms = parseInt(combined.slice(-msLength).padEnd(3, '0')); // Normalize to milliseconds
+      const sec = parseInt(combined.slice(0, -msLength));
+      const time = parseInt(min) * 60 + sec + ms / 1000;
+      result.push({ time, text: text.trim() });
+    }
+  }
+
+  return result;
+}
+
 
 router.get('/getInfo', async (req, res) => {
   const { id: videoId } = req.query;
@@ -207,6 +241,8 @@ router.get('/getInfo', async (req, res) => {
     const response = await fetch(apiUrl);
     const data = await response.json();
 
+    const additionalDetails = await ytm.get(videoId);
+
     if (!data.items || data.items.length === 0) {
       return res.status(404).send('Video not found.');
     }
@@ -220,9 +256,13 @@ router.get('/getInfo', async (req, res) => {
 
     const videoInfo = {
       id: videoId,
+      isAudioOnly: additionalDetails?.isAudioOnly || false,
+      resultType: additionalDetails?.resultType || null,
       title: rawTitle,
+      album: additionalDetails?.album || null,
       stats: videoDetails.statistics,
-      artist: videoDetails.snippet?.channelTitle,
+      artist: additionalDetails.artists || null,
+      channelTitle: videoDetails.snippet?.channelTitle,
       thumbnails: videoDetails.snippet?.thumbnails,
       channelId: videoDetails.snippet?.channelId,
       description: videoDetails.snippet?.description,
@@ -232,25 +272,38 @@ router.get('/getInfo', async (req, res) => {
       lyrics: null,
     };
 
-    // Fetch lyrics
-    const lyricsRes = await fetch(`https://lrclib.net/api/search?q=${encodeURIComponent(cleanedTitle)}`);
-    if (lyricsRes.ok) {
-      const lyricsData = await lyricsRes.json();
+    let lyricsData = [];
 
-      const filteredByDuration = lyricsData.filter(song => {
-        return song.duration && Math.abs(Math.round(song.duration) - duration) <= 2;
-      });
-
-      const withSynced = filteredByDuration.find(song => song.syncedLyrics);
-      const withPlain = filteredByDuration.find(song => song.plainLyrics);
-
-      if (withSynced || withPlain) {
-        videoInfo.lyrics = withSynced?.syncedLyrics || withPlain?.plainLyrics;
-      }
-      videoInfo.synced = !!withSynced;
-    } else {
-      console.warn('Lrclib fetch failed with status', lyricsRes.status);
+    // First attempt: q=<cleanedTitle>
+    const primaryRes = await fetch(`https://lrclib.net/api/search?q=${encodeURIComponent(cleanedTitle)}+${videoInfo.artist[0].name || ''}`);
+    if (primaryRes.ok) {
+      lyricsData = await primaryRes.json();
+      console.log('Primary lyrics fetch successful:', lyricsData.length, 'results found');
     }
+    console.log(duration);
+    // Filter by duration
+    let filteredByDuration = lyricsData.filter(song => {
+      return song.duration && Math.abs(Math.round(song.duration) - duration) <= 2;
+    });
+
+    // If nothing matches, try with track_name param
+    if (filteredByDuration.length === 0) {
+      console.log('No matches with q param, retrying with track_name...');
+      const fallbackRes = await fetch(`https://lrclib.net/api/search?q=${encodeURIComponent(cleanedTitle)}`);
+      if (fallbackRes.ok) {
+        const fallbackData = await fallbackRes.json();
+        filteredByDuration = fallbackData.filter(song => {
+          return song.duration && Math.abs(Math.round(song.duration) - duration) <= 2;
+        });
+      } else {
+        console.warn('Fallback request failed:', fallbackRes.status);
+      }
+    }
+
+    // Select lyrics if any match is found
+    const withSynced = filteredByDuration.find(song => song.syncedLyrics);
+
+    videoInfo.lyrics = parseLyrics(withSynced?.syncedLyrics)
 
     return res.json(videoInfo);
   } catch (err) {
@@ -265,7 +318,7 @@ router.get('/getInfo', async (req, res) => {
 router.get('/homeSections', async (req, res) => {
   try {
     console.log('Initializing ytmusic for India...');
-    // Initialize with India region (GL) and English language (HL)
+    // initialize with India region (GL) and English language (HL)
     await ytmusic.initialize({ GL: 'IN', HL: 'en' })
 
     console.log('Fetching India-specific home sections...');
