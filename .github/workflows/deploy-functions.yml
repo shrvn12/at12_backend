@@ -26,5 +26,10 @@ jobs:
           cd functions
           npm install
 
+      - name: Debug Firebase Token (length only)
+        run: echo "FIREBASE_TOKEN is ${#FIREBASE_TOKEN} characters long"
+        env:
+            FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+
       - name: Deploy Firebase Functions
         run: firebase deploy --only functions --token "$FIREBASE_TOKEN"
