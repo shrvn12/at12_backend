@@ -444,6 +444,7 @@ router.get('/search/artist', async (req, res) => {
     }
     return res.json(resolvedResponse);
   } catch (error) {
+    console.log('artist search request query', req.query.q);
     console.error('Error during artist search:', error);
     return res.status(500).json({ error: 'An error occurred while processing the request.', details: error.message });
     
