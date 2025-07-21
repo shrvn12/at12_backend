@@ -52,6 +52,7 @@ router.get('/searchSong', async (req, res) => {
     await ytmusic.initialize();
 
     const query = req.query.query;
+    const maxResults = parseInt(req.query.maxResults) || 5;
 
     // Validate the query parameter
     if (!query || query === "null") {
@@ -59,10 +60,26 @@ router.get('/searchSong', async (req, res) => {
     }
 
     // Search for songs using the provided query
-    const songs = await ytmusic.searchSongs(query);
+    // const songs = await ytmusic.searchSongs(query);
+    const songs = await ytm.search(query, 'song');
+    const videos = await ytm.search(query, 'video');
+
+    const response = {
+      songs: songs.content?.slice(0, maxResults),
+      videos: videos.content?.sort((a,b) => a.searchRanking - b.searchRanking).slice(0, maxResults)
+    }
+
+    response.songs.map((item) => {
+      item.videoId = item.id;
+      item.name = item.title;
+    });
+    response.videos.map((item) => {
+      item.videoId = item.id;
+      item.name = item.title;
+    });
 
     // Return the search results as JSON
-    return res.json(songs);
+    return res.json(response);
   } catch (err) {
     // Log the error and send a 500 status response
     console.error('Error during song search:', err);
@@ -127,51 +144,6 @@ router.get('/getQueue', async (req, res) => {
   }
 });
 
-// router.get('/getInfo', async (req, res) => {
-//   const { id: videoId } = req.query;
-//   await ytmusic.initialize();
-
-//   // Validate the video ID parameter
-//   if (!videoId) {
-//     return res.status(400).send('Video ID is required.');
-//   }
-
-//   try {
-//     console.log('Fetching video details...');
-//     // Fetch video information from the YouTube API
-//     const apiUrl = `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&id=${videoId}&key=${process.env.KEY}`;
-//     const response = await fetch(apiUrl);
-//     const data = await response.json();
-//     // Check if the response contains video data
-//     if (!data.items || data.items.length === 0) {
-//       return res.status(404).send('Video not found.');
-//     }
-
-//     // Extract basic video details
-//     const videoDetails = data.items[0];
-//     const videoInfo = {
-//       id: videoId,
-//       title: videoDetails.snippet?.title,
-//       stats: videoDetails.statistics,
-//       artist: videoDetails.snippet?.channelTitle, // Placeholder for artist details
-//       thumbnails: videoDetails.snippet?.thumbnails,
-//       channelId: videoDetails.snippet?.channelId,
-//       descrption: videoDetails.snippet?.description,
-//       publishedAt: videoDetails.snippet?.publishedAt,
-//       duration: parseYouTubeDuration(videoDetails.contentDetails?.duration) || 0, // Convert ISO 8601 duration to seconds
-//     };
-
-//     return res.json(videoInfo);
-//   } catch (err) {
-//     console.error('Error fetching video info:', err);
-//     return res.status(500).json({
-//       error: 'An error occurred while fetching video info.',
-//       details: err.message,
-//     });
-//   }
-// });
-
-
 function cleanTitle(rawTitle) {
   // Step 1: Remove unwanted keywords
   const unwantedWords = ["full video", "lyrical", "full audio", "full song", "full album", "full movie", "full", "official video", "official audio", "official song", "official music video", "official full video", "official full song", "official full album", "official full movie", "audio", "song", "album", "movie", "music video", "music", "video", "lyrics", "lyric", "official", "full song audio", "full song video", "full song music video", "full song lyrics", "full song lyric", "full album audio", "full album video", "full album music video", "full album lyrics", "full album lyric"];
@@ -226,6 +198,23 @@ function parseLyrics(lyricsText) {
   return result;
 }
 
+router.get('/trackInfo/:id', async (req, res) => {
+  const { id: videoId } = req.params;
+  if (!videoId) {
+    return res.status(400).send('Video ID is required.');
+  }
+  console.log('Fetching track info for video ID:', videoId);
+  try {
+    const details = await ytm.get(videoId);
+    res.json(details);
+  } catch (error) {
+    console.error('Error fetching track info:', error);
+    return res.status(500).json({
+      error: 'An error occurred while fetching track info.',
+      details: error.message,
+    });
+  }
+});
 
 router.get('/getInfo', async (req, res) => {
   const { id: videoId } = req.query;
@@ -315,25 +304,6 @@ router.get('/getInfo', async (req, res) => {
   }
 });
 
-router.get('/homeSections', async (req, res) => {
-  try {
-    console.log('Initializing ytmusic for India...');
-    // initialize with India region (GL) and English language (HL)
-    await ytmusic.initialize({ GL: 'IN', HL: 'en' })
-
-    console.log('Fetching India-specific home sections...');
-    const result = await ytmusic.getHomeSections()
-
-    return res.json(result)
-  } catch (err) {
-    console.error('Error fetching home sections:', err)
-    return res.status(500).json({
-      error: 'Failed to fetch India-specific home sections.',
-      details: err.message,
-    })
-  }
-})
-
 router.get('/lyrics', async (req, res) => {
   const query = req.query.q || "";
   const duration = parseInt(req.query.duration);
@@ -368,5 +338,154 @@ router.get('/lyrics', async (req, res) => {
   }
 });
 
+router.get('/artist/:id', async (req, res) => {
+  const id = req.params.id;
+
+  if (!id) {
+    return res.status(400).send('Artist ID is missing');
+  }
+
+  let artist = null;
+  let channelInfo = null;
+  let additionalInfo = null;
+
+  try {
+    await ytmusic.initialize();
+  } catch (err) {
+    console.error('[ytmusic.initialize] Failed:', err.message);
+  }
+
+  try {
+    artist = await ytmusic.getArtist(id);
+    console.log('[ytmusic] Artist data fetched');
+  } catch (err) {
+    console.error('[ytmusic] Failed to fetch artist:', err.message);
+  }
+
+  try {
+    const response = await axios.get('https://www.googleapis.com/youtube/v3/channels', {
+      params: {
+        part: 'snippet,statistics,brandingSettings',
+        id: id,
+        key: process.env.KEY
+      }
+    });
+    channelInfo = response.data?.items?.[0] || null;
+    console.log('[YouTube API] Channel info fetched');
+  } catch (err) {
+    console.error('[YouTube API] Failed:', err.message);
+  }
+
+  try {
+    additionalInfo = await ytm.get(id);
+    console.log('[ytm] Additional info fetched');
+  } catch (err) {
+    console.error('[ytm] Failed:', err.message);
+  }
+
+  // If all three failed, send a proper error
+  if (!artist && !channelInfo && !additionalInfo) {
+    return res.status(500).json({
+      error: 'All data sources failed',
+    });
+  }
+
+  return res.json({
+    ...artist,
+    channelInfo,
+    additionalInfo
+  });
+});
+
+
+router.get('/artistInfo/:id', async (req, res) => {
+  const id = req.params.id;
+  if (!id) {
+    return res.status(400).send('Artist ID is missing');
+  }
+  try {
+    const response = await ytm.get(id);
+    if (!response) {
+      return res.status(404).send('Artist not found');
+    }
+    return res.json(response);
+  } catch (error) {
+    console.error('Error fetching artist info:', error);
+    return res.status(500).json({
+      error: 'An error occurred while processing the request.',
+      details: error.message
+    });
+  }
+})
+
+router.get('/search/artist', async (req, res) => {
+  const query = req.query.q || '';
+  if (!query.length) {
+    return res.status(400).send('Query is missing');
+  }
+
+  try {
+    const result = await ytm.search(query, 'artist');
+    // let response = [];
+
+    const response = [];
+    for (let item of result.content) {
+      if (!item.artists) {
+        response.push(ytm.get(item.id));
+      } else {
+        for (const artist of item.artists) {
+          response.push(ytm.get(artist.id));
+        }
+      }
+    }
+    const resolvedResponse = await Promise.all(response);
+    if (resolvedResponse.length === 0) {
+      return res.status(404).send('No artists found for the given query');
+    }
+    return res.json(resolvedResponse);
+  } catch (error) {
+    console.error('Error during artist search:', error);
+    return res.status(500).json({ error: 'An error occurred while processing the request.', details: error.message });
+    
+  }
+})
+
+router.get('/playlist/:id', async (req, res) =>{
+  let id = req.params.id;
+  if (id.substring(0,2) == 'VL'){
+    id = id.substring(2);
+  }
+  if(!id) {
+    return res.status(400).send('Playlist ID is missing');
+  }
+  try {
+    const playlistItemsUrl = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${id}&key=${process.env.KEY}&maxResults=50`;
+
+    const playlistUrl = `https://www.googleapis.com/youtube/v3/playlists?part=snippet&id=${id}&key=${process.env.KEY}`
+
+    const items = await axios.get(playlistItemsUrl);
+    const metaData = await axios.get(playlistUrl);
+    const response = {
+      items: items.data,
+      metaData: metaData.data
+    }
+    return res.json(response);
+  } catch (error) {
+    console.error('Error during playlist retrieval:', error);
+    return res.status(500).json({ error: 'An error occurred while processing the request.', details: error.message });
+  }
+})
+
+router.get('/search/playlist', async(req, res) => {
+  const query = req.query.q;
+  try {
+    await ytmusic.initialize();
+    const result = await ytmusic.searchPlaylists(query);
+    res.json(result);
+  } catch (error) {
+    console.error('Error during playlist search:', error);
+    return res.status(500).json({ error: 'An error occurred while processing the request.', details: error.message });
+  }
+})
 
 module.exports = router;
