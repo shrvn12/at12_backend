@@ -8,28 +8,21 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: '22' # match your Firebase Functions runtime
+          node-version: '18'
 
       - name: Install Firebase CLI
         run: npm install -g firebase-tools
 
       - name: Install dependencies
-        run: |
-          cd functions
-          npm install
-
-      - name: Debug Firebase Token (length only)
-        run: echo "FIREBASE_TOKEN is ${#FIREBASE_TOKEN} characters long"
-        env:
-            FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: cd functions && npm install
 
       - name: Deploy Firebase Functions
-        run: firebase deploy --only functions --token "$FIREBASE_TOKEN"
+        run: firebase deploy --only functions
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+
