@@ -338,65 +338,130 @@ router.get('/lyrics', async (req, res) => {
   }
 });
 
-router.get('/artist/:id', async (req, res) => {
-  const id = req.params.id;
+// router.get('/artist/:id', async (req, res) => {
+//   const id = req.params.id;
 
-  if (!id) {
-    return res.status(400).send('Artist ID is missing');
+//   if (!id) {
+//     return res.status(400).send('Artist ID is missing');
+//   }
+
+//   let artist = null;
+//   let channelInfo = null;
+//   let additionalInfo = null;
+
+//   try {
+//     await ytmusic.initialize();
+//   } catch (err) {
+//     console.error('[ytmusic.initialize] Failed:', err.message);
+//   }
+
+//   try {
+//     artist = await ytmusic.getArtist(id);
+//     console.log('[ytmusic] Artist data fetched');
+//   } catch (err) {
+//     console.error('[ytmusic] Failed to fetch artist:', err.message);
+//   }
+
+//   try {
+//     const response = await axios.get('https://www.googleapis.com/youtube/v3/channels', {
+//       params: {
+//         part: 'snippet,statistics,brandingSettings',
+//         id: id,
+//         key: process.env.KEY
+//       }
+//     });
+//     channelInfo = response.data?.items?.[0] || null;
+//     console.log('[YouTube API] Channel info fetched');
+//   } catch (err) {
+//     console.error('[YouTube API] Failed:', err.message);
+//   }
+
+//   try {
+//     additionalInfo = await ytm.get(id);
+//     console.log('[ytm] Additional info fetched');
+//   } catch (err) {
+//     console.error('[ytm] Failed:', err.message);
+//   }
+
+//   // If all three failed, send a proper error
+//   if (!artist && !channelInfo && !additionalInfo) {
+//     return res.status(500).json({
+//       error: 'All data sources failed',
+//     });
+//   }
+
+//   return res.json({
+//     ...artist,
+//     channelInfo,
+//     additionalInfo
+//   });
+// });
+
+
+router.get('/artist', async (req, res) => {
+  const ids = req.query.id;
+
+  // Validate input
+  if (!ids || (Array.isArray(ids) && ids.length === 0)) {
+    return res.status(400).send('Artist ID(s) are missing');
   }
 
-  let artist = null;
-  let channelInfo = null;
-  let additionalInfo = null;
+  const idArray = Array.isArray(ids) ? ids : [ids];
+  const results = [];
 
   try {
     await ytmusic.initialize();
   } catch (err) {
     console.error('[ytmusic.initialize] Failed:', err.message);
   }
+  console.log(idArray);
+  for (const id of idArray) {
+    let artist = null;
+    let channelInfo = null;
+    let additionalInfo = null;
 
-  try {
-    artist = await ytmusic.getArtist(id);
-    console.log('[ytmusic] Artist data fetched');
-  } catch (err) {
-    console.error('[ytmusic] Failed to fetch artist:', err.message);
+    try {
+      artist = await ytmusic.getArtist(id);
+      console.log(`[ytmusic] Artist data fetched for ${id}`);
+    } catch (err) {
+      console.error(`[ytmusic] Failed for ${id}:`, err.message);
+    }
+
+    try {
+      const ytRes = await axios.get('https://www.googleapis.com/youtube/v3/channels', {
+        params: {
+          part: 'snippet,statistics,brandingSettings',
+          id: id,
+          key: process.env.KEY
+        }
+      });
+      channelInfo = ytRes.data?.items?.[0] || null;
+      console.log(`[YouTube API] Channel info fetched for ${id}`);
+    } catch (err) {
+      console.error(`[YouTube API] Failed for ${id}:`, err.message);
+    }
+
+    try {
+      additionalInfo = await ytm.get(id);
+      console.log(`[ytm] Additional info fetched for ${id}`);
+    } catch (err) {
+      console.error(`[ytm] Failed for ${id}:`, err.message);
+    }
+
+    if (!artist && !channelInfo && !additionalInfo) {
+      results.push({ id, error: 'All data sources failed' });
+    } else {
+      results.push({
+        id,
+        ...artist,
+        channelInfo,
+        additionalInfo
+      });
+    }
   }
 
-  try {
-    const response = await axios.get('https://www.googleapis.com/youtube/v3/channels', {
-      params: {
-        part: 'snippet,statistics,brandingSettings',
-        id: id,
-        key: process.env.KEY
-      }
-    });
-    channelInfo = response.data?.items?.[0] || null;
-    console.log('[YouTube API] Channel info fetched');
-  } catch (err) {
-    console.error('[YouTube API] Failed:', err.message);
-  }
-
-  try {
-    additionalInfo = await ytm.get(id);
-    console.log('[ytm] Additional info fetched');
-  } catch (err) {
-    console.error('[ytm] Failed:', err.message);
-  }
-
-  // If all three failed, send a proper error
-  if (!artist && !channelInfo && !additionalInfo) {
-    return res.status(500).json({
-      error: 'All data sources failed',
-    });
-  }
-
-  return res.json({
-    ...artist,
-    channelInfo,
-    additionalInfo
-  });
+  return res.json(results);
 });
-
 
 router.get('/artistInfo/:id', async (req, res) => {
   const id = req.params.id;
