@@ -1,5 +1,8 @@
 {
   "projects": {
-    "default": "at12-da517"
-  }
+    "default": "at12-da517",
+    "prod": "at12-da517"
+  },
+  "targets": {},
+  "etags": {}
 }
