@@ -144,6 +144,23 @@ router.get('/getQueue', async (req, res) => {
   }
 });
 
+router.get('/getUpNexts/:id', async (req, res) => {
+  try {
+    await ytmusic.initialize();
+    const id = req.params.id;
+    if (!id || id === "null") {
+      return res.status(400).send('Id missing or invalid!');
+    }
+
+    const result = await ytmusic.getUpNexts(id);
+
+    res.json(result);
+  } catch (error) {
+    console.error('Error during getUpNexts:', error);
+    return res.status(500).json({ error: 'An error occurred while processing the request.', details: err.message });
+  }
+})
+
 function cleanTitle(rawTitle) {
   // Step 1: Remove unwanted keywords
   const unwantedWords = ["full video", "lyrical", "full audio", "full song", "full album", "full movie", "full", "official video", "official audio", "official song", "official music video", "official full video", "official full song", "official full album", "official full movie", "audio", "song", "album", "movie", "music video", "music", "video", "lyrics", "lyric", "official", "full song audio", "full song video", "full song music video", "full song lyrics", "full song lyric", "full album audio", "full album video", "full album music video", "full album lyrics", "full album lyric"];
