@@ -22,6 +22,7 @@ var createError = require('http-errors');
 var express = require('express');
 var path = require('path');
 var cookieParser = require('cookie-parser');
+const mongoose = require('mongoose');
 var cors = require('cors');
 
 // var indexRouter = require('../routes/index.js');
@@ -30,6 +31,7 @@ var cors = require('cors');
 // Use path.join to resolve the file paths
 const indexRouter = require(path.join(__dirname, 'routes', 'index.js'));
 const musicRouter = require(path.join(__dirname, 'routes', 'music.js'));
+const authRouter = require(path.join(__dirname, 'routes', 'auth.js'));
 
 // var musicRouter = require('../routes/music.js');
 var app = express();
@@ -44,8 +46,14 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
+const mongoUrl = process.env.MONGO_URI || functions.config().mongodb.url;
+mongoose.connect(mongoUrl)
+  .then(() => console.log('✅ MongoDB connected successfully'))
+  .catch(err => console.error('❌ MongoDB connection error:', err));
+
 app.use('/', indexRouter);
 app.use('/music', musicRouter);
+app.use('/auth', authRouter);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {

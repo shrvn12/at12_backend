@@ -1,0 +1,82 @@
+doctype html
+html(lang="en")
+  head
+    meta(charset="UTF-8")
+    meta(name="viewport", content="width=device-width, initial-scale=1.0")
+    title Email Verified
+    style.
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background: #1a1a1a;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        padding: 20px;
+        color: #e0e0e0;
+      }
+      .container {
+        text-align: center;
+        max-width: 480px;
+        width: 100%;
+      }
+      .icon-wrapper {
+        margin-bottom: 24px;
+      }
+      .icon {
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 32px;
+        background: #2a3a2f;
+        color: #4ade80;
+      }
+      h1 {
+        font-size: 24px;
+        font-weight: 600;
+        color: #e0e0e0;
+        margin-bottom: 8px;
+      }
+      p {
+        font-size: 15px;
+        color: #a1a1a1;
+        line-height: 1.6;
+        margin-bottom: 32px;
+      }
+      .button {
+        display: inline-block;
+        background: #e0e0e0;
+        color: #1a1a1a;
+        text-decoration: none;
+        padding: 12px 32px;
+        border-radius: 8px;
+        font-size: 15px;
+        font-weight: 500;
+        transition: background 0.2s;
+      }
+      .button:hover {
+        background: #b0b0b0;
+      }
+      @media (max-width: 480px) {
+        h1 {
+          font-size: 22px;
+        }
+        p {
+          font-size: 14px;
+        }
+      }
+  body
+    .container
+      .icon-wrapper
+        .icon ✓
+      h1 Email verified
+      p Your email has been successfully verified. You can now access your account.
+      a.button(href="http://localhost:8080/login") Continue to login

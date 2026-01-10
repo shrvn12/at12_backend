@@ -1,3 +1,0 @@
-ytmusicapi
-python-dotenv
-

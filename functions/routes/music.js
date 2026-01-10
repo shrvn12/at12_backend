@@ -321,6 +321,23 @@ router.get('/getInfo', async (req, res) => {
   }
 });
 
+router.get('/info', async (req, res) => {
+  const videoId = req.query.id;
+  if (!videoId) {
+    return res.status(400).send('Video ID is required.');
+  }
+  try {
+    const details = await ytm.get(videoId);
+    return res.json(details);
+  } catch (error) {
+    console.error('Error fetching video details:', error);
+    return res.status(500).json({
+      error: 'An error occurred while fetching video details.',
+      details: error.message,
+    });
+  }
+});
+
 router.get('/lyrics', async (req, res) => {
   const query = req.query.q || "";
   const duration = parseInt(req.query.duration);
