@@ -24,6 +24,7 @@ var path = require('path');
 var cookieParser = require('cookie-parser');
 const mongoose = require('mongoose');
 var cors = require('cors');
+require('dotenv').config();
 
 // var indexRouter = require('../routes/index.js');
 
