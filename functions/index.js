@@ -47,7 +47,7 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
-const mongoUrl = process.env.MONGO_URI || functions.config().mongodb.url;
+const mongoUrl = process.env.MONGO_URI;
 mongoose.connect(mongoUrl)
   .then(() => console.log('✅ MongoDB connected successfully'))
   .catch(err => console.error('❌ MongoDB connection error:', err));
