@@ -3,11 +3,12 @@ name: Deploy Firebase Functions
 on:
   push:
     branches:
-      - main  # or your deployment branch
+      - main
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
@@ -21,8 +22,17 @@ jobs:
       - name: Install dependencies
         run: cd functions && npm install
 
+      - name: Authenticate Firebase
+        run: firebase --version
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+
+      - name: Set Firebase Functions Environment Variables
+        run: firebase functions:env:set MONGO_URI="${{ secrets.MONGO_URI }}"
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+
       - name: Deploy Firebase Functions
         run: firebase deploy --only functions
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
-
