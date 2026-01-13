@@ -22,10 +22,8 @@ jobs:
       - name: Install dependencies
         run: cd functions && npm install
 
-      - name: Set Firebase Functions Environment Variables
-        run: firebase functions:env:set MONGO_URI="${{ secrets.MONGO_URI }}"
-        env:
-          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+      - name: Create .env file
+        run: echo "MONGO_URI=${{ secrets.MONGO_URI }}" > functions/.env
 
       - name: Deploy Firebase Functions
         run: firebase deploy --only functions
