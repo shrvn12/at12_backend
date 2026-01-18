@@ -73,22 +73,16 @@ authRouter.post('/login', validateFields(["password"]), verifyPassword, async(re
         const token = jwt.sign(user, process.env.JWT_SECRET, { expiresIn: '7d' });
         res.clearCookie('token');
         
-        // FIXED: Cookie settings for cross-origin requests
         const cookieOptions = {
             httpOnly: true,
-            secure: false, // For http://localhost
-            sameSite: 'None', // Use 'lax' for http, 'none' requires https
+            secure: true,
+            sameSite: 'None',
             path: '/'
         };
         
         if (remember) {
             cookieOptions.maxAge = 7 * 24 * 60 * 60 * 1000; // 7 days
         }
-        
-        // For production, use these settings:
-        // secure: process.env.NODE_ENV === 'production', // true for https
-        // sameSite: 'none' (still needed for cross-origin)
-
         res.cookie('token', token, cookieOptions);
         res.status(200).send({msg: 'login successful', success: true, ...user});
     } catch (error) {

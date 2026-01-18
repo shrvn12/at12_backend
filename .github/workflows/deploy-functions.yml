@@ -23,7 +23,13 @@ jobs:
         run: cd functions && npm install
 
       - name: Create .env file
-        run: echo "MONGO_URI=${{ secrets.MONGO_URI }}" > functions/.env
+        run: |
+          echo "KEY=${{ secrets.KEY }}" >> functions/.env
+          echo "MONGO_URI=${{ secrets.MONGO_URI }}" >> functions/.env
+          echo "SALT=${{ secrets.SALT }}" >> functions/.env
+          echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> functions/.env
+          echo "MAIL_USER=${{ secrets.MAIL_USER }}" >> functions/.env
+          echo "MAIL_PASS=${{ secrets.MAIL_PASS }}" >> functions/.env
 
       - name: Deploy Firebase Functions
         run: firebase deploy --only functions
